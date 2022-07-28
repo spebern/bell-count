@@ -106,6 +106,7 @@ function start() {
     console.log('getUserMedia not supported on your browser!');
   }
 
+
   function run() {
     analyser.fftSize = 1024;
     var bufferLengthAlt = analyser.frequencyBinCount;
@@ -117,8 +118,6 @@ function start() {
     var bellA = new Bell(4737.3046875, 4823.4375, frequencyInterval * 2);
     var bellB = new Bell(5340.234375, 5383.30078125, frequencyInterval * 2);
     var detectBells = function () {
-      drawVisual = requestAnimationFrame(detectBells);
-
       analyser.getByteFrequencyData(dataArrayAlt);
 
       const frequencyInterval = maxFrequency / dataArrayAlt.byteLength;
@@ -149,8 +148,9 @@ function start() {
       bellB.reset();
     };
 
-    detectBells();
+    setInterval(detectBells, 10);
   }
+
 }
 
 function stop() {
