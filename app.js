@@ -40,6 +40,7 @@ class Bell {
 class BellDetectionService {
   constructor() {
     this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    this.intervalID = 0;
   }
 
   start() {
@@ -111,6 +112,7 @@ class BellDetectionService {
       console.log('getUserMedia not supported on your browser!');
     }
 
+    var self = this;
 
     function run() {
       analyser.fftSize = 1024;
@@ -123,6 +125,7 @@ class BellDetectionService {
       var bellA = new Bell(4737.3046875, 4823.4375, frequencyInterval * 2);
       var bellB = new Bell(5340.234375, 5383.30078125, frequencyInterval * 2);
       var detectBells = function () {
+        console.log("here");
         analyser.getByteFrequencyData(dataArrayAlt);
 
         const frequencyInterval = maxFrequency / dataArrayAlt.byteLength;
@@ -152,16 +155,25 @@ class BellDetectionService {
         bellB.reset();
       };
 
-      setInterval(detectBells, 10);
+      self.intervalID = setInterval(detectBells, 10);
+      console.log(self.intervalID);
     }
   }
 
   stop() {
-    this.audioCtx.close();
+    console.log(this.intervalID);
+    if (this.intervalID != 0) {
+      console.log(this.intervalID);
+      clearInterval(this.intervalID);
+      this.audioCtx.close();
+    }
   }
 }
 
 function start() {
   var bellDetectionService = new BellDetectionService();
+  setTimeout(function () {
+    bellDetectionService.stop();
+  }, 3000);
   bellDetectionService.start();
 }
