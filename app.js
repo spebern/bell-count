@@ -35,8 +35,6 @@ function init() {
     }
   }
 
-
-
   // set up forked web audio context, for multiple browsers
   // window. is needed otherwise Safari explodes
 
@@ -102,7 +100,7 @@ function init() {
     const maxFrequency = audioCtx.sampleRate / 2;
 
     const frequencyInterval = maxFrequency / analyser.fftSize;
-    var bellA = new Bell(4737.3046875, 4866.50390625, frequencyInterval * 2);
+    var bellA = new Bell(4737.3046875, 4823.4375, frequencyInterval * 2);
     var bellB = new Bell(5340.234375, 5383.30078125, frequencyInterval * 2);
     var drawAlt = function () {
       drawVisual = requestAnimationFrame(drawAlt);
@@ -149,9 +147,9 @@ function init() {
       if (bellB.hasRang) {
         console.log("bell b has rang");
       }
-      // if (activeFrequencies.length > 0) {
-      //   console.log(activeFrequencies);
-      // }
+      if (activeFrequencies.length > 0) {
+        console.log(activeFrequencies);
+      }
       bellA.reset();
       bellB.reset();
     };
