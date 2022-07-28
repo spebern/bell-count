@@ -37,121 +37,131 @@ class Bell {
   }
 }
 
-function start() {
-  heading.textContent = 'Voice-change-O-matic';
-  document.body.removeEventListener('click', start)
-
-  // Older browsers might not implement mediaDevices at all, so we set an empty object first
-  if (navigator.mediaDevices === undefined) {
-    navigator.mediaDevices = {};
+class BellDetectionService {
+  constructor() {
+    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
 
+  start() {
+    heading.textContent = 'Voice-change-O-matic';
+    document.body.removeEventListener('click', start)
 
-  // Some browsers partially implement mediaDevices. We can't just assign an object
-  // with getUserMedia as it would overwrite existing properties.
-  // Here, we will just add the getUserMedia property if it's missing.
-  if (navigator.mediaDevices.getUserMedia === undefined) {
-    navigator.mediaDevices.getUserMedia = function (constraints) {
+    // Older browsers might not implement mediaDevices at all, so we set an empty object first
+    if (navigator.mediaDevices === undefined) {
+      navigator.mediaDevices = {};
+    }
 
-      // First get ahold of the legacy getUserMedia, if present
-      var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 
-      // Some browsers just don't implement it - return a rejected promise with an error
-      // to keep a consistent interface
-      if (!getUserMedia) {
-        return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+    // Some browsers partially implement mediaDevices. We can't just assign an object
+    // with getUserMedia as it would overwrite existing properties.
+    // Here, we will just add the getUserMedia property if it's missing.
+    if (navigator.mediaDevices.getUserMedia === undefined) {
+      navigator.mediaDevices.getUserMedia = function (constraints) {
+
+        // First get ahold of the legacy getUserMedia, if present
+        var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
+        // Some browsers just don't implement it - return a rejected promise with an error
+        // to keep a consistent interface
+        if (!getUserMedia) {
+          return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+        }
+
+        // Otherwise, wrap the call to the old navigator.getUserMedia with a Promise
+        return new Promise(function (resolve, reject) {
+          getUserMedia.call(navigator, constraints, resolve, reject);
+        });
       }
+    }
 
-      // Otherwise, wrap the call to the old navigator.getUserMedia with a Promise
-      return new Promise(function (resolve, reject) {
-        getUserMedia.call(navigator, constraints, resolve, reject);
-      });
+    // set up forked web audio context, for multiple browsers
+    // window. is needed otherwise Safari explodes
+
+    var audioCtx = this.audioCtx;
+    var source;
+
+    var analyser = audioCtx.createAnalyser();
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
+    analyser.smoothingTimeConstant = 0.85;
+
+    var distortion = audioCtx.createWaveShaper();
+    var gainNode = audioCtx.createGain();
+    var biquadFilter = audioCtx.createBiquadFilter();
+    var convolver = audioCtx.createConvolver();
+
+    if (navigator.mediaDevices.getUserMedia) {
+      console.log('getUserMedia supported.');
+      var constraints = { audio: true }
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(
+          function (stream) {
+            source = audioCtx.createMediaStreamSource(stream);
+            source.connect(distortion);
+            distortion.connect(biquadFilter);
+            biquadFilter.connect(gainNode);
+            convolver.connect(gainNode);
+            gainNode.connect(analyser);
+            analyser.connect(audioCtx.destination);
+
+            run();
+          })
+        .catch(function (err) { console.log('The following gUM error occured: ' + err); })
+    } else {
+      console.log('getUserMedia not supported on your browser!');
+    }
+
+
+    function run() {
+      analyser.fftSize = 1024;
+      var bufferLengthAlt = analyser.frequencyBinCount;
+      var dataArrayAlt = new Uint8Array(bufferLengthAlt);
+
+      const maxFrequency = audioCtx.sampleRate / 2;
+
+      const frequencyInterval = maxFrequency / analyser.fftSize;
+      var bellA = new Bell(4737.3046875, 4823.4375, frequencyInterval * 2);
+      var bellB = new Bell(5340.234375, 5383.30078125, frequencyInterval * 2);
+      var detectBells = function () {
+        analyser.getByteFrequencyData(dataArrayAlt);
+
+        const frequencyInterval = maxFrequency / dataArrayAlt.byteLength;
+
+        var activeFrequencies = "";
+        for (var i = 0; i < bufferLengthAlt; i++) {
+          if (dataArrayAlt[i] > 0.0 && (i + 1) * frequencyInterval > 3000.0) {
+            bellA.setFrequencyBin(i);
+            bellB.setFrequencyBin(i);
+            activeFrequencies += (
+              frequencyInterval * i).toString() +
+              " - " +
+              (frequencyInterval * (i + 1)).toString() +
+              "\n";
+          }
+        }
+        if (bellA.hasRang) {
+          console.log("bell a has rang");
+        }
+        if (bellB.hasRang) {
+          console.log("bell b has rang");
+        }
+        // if (activeFrequencies.length > 0) {
+        //   console.log(activeFrequencies);
+        // }
+        bellA.reset();
+        bellB.reset();
+      };
+
+      setInterval(detectBells, 10);
     }
   }
 
-  // set up forked web audio context, for multiple browsers
-  // window. is needed otherwise Safari explodes
-
-  var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  var source;
-
-  var analyser = audioCtx.createAnalyser();
-  analyser.minDecibels = -90;
-  analyser.maxDecibels = -10;
-  analyser.smoothingTimeConstant = 0.85;
-
-  var distortion = audioCtx.createWaveShaper();
-  var gainNode = audioCtx.createGain();
-  var biquadFilter = audioCtx.createBiquadFilter();
-  var convolver = audioCtx.createConvolver();
-
-  if (navigator.mediaDevices.getUserMedia) {
-    console.log('getUserMedia supported.');
-    var constraints = { audio: true }
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(
-        function (stream) {
-          source = audioCtx.createMediaStreamSource(stream);
-          source.connect(distortion);
-          distortion.connect(biquadFilter);
-          biquadFilter.connect(gainNode);
-          convolver.connect(gainNode);
-          gainNode.connect(analyser);
-          analyser.connect(audioCtx.destination);
-
-          run();
-        })
-      .catch(function (err) { console.log('The following gUM error occured: ' + err); })
-  } else {
-    console.log('getUserMedia not supported on your browser!');
+  stop() {
+    this.audioCtx.close();
   }
-
-
-  function run() {
-    analyser.fftSize = 1024;
-    var bufferLengthAlt = analyser.frequencyBinCount;
-    var dataArrayAlt = new Uint8Array(bufferLengthAlt);
-
-    const maxFrequency = audioCtx.sampleRate / 2;
-
-    const frequencyInterval = maxFrequency / analyser.fftSize;
-    var bellA = new Bell(4737.3046875, 4823.4375, frequencyInterval * 2);
-    var bellB = new Bell(5340.234375, 5383.30078125, frequencyInterval * 2);
-    var detectBells = function () {
-      analyser.getByteFrequencyData(dataArrayAlt);
-
-      const frequencyInterval = maxFrequency / dataArrayAlt.byteLength;
-
-      var activeFrequencies = "";
-      for (var i = 0; i < bufferLengthAlt; i++) {
-        barHeight = dataArrayAlt[i];
-        if (dataArrayAlt[i] > 0.0 && (i + 1) * frequencyInterval > 3000.0) {
-          bellA.setFrequencyBin(i);
-          bellB.setFrequencyBin(i);
-          activeFrequencies += (
-            frequencyInterval * i).toString() +
-            " - " +
-            (frequencyInterval * (i + 1)).toString() +
-            "\n";
-        }
-      }
-      if (bellA.hasRang) {
-        console.log("bell a has rang");
-      }
-      if (bellB.hasRang) {
-        console.log("bell b has rang");
-      }
-      // if (activeFrequencies.length > 0) {
-      //   console.log(activeFrequencies);
-      // }
-      bellA.reset();
-      bellB.reset();
-    };
-
-    setInterval(detectBells, 10);
-  }
-
 }
 
-function stop() {
+function start() {
+  var bellDetectionService = new BellDetectionService();
+  bellDetectionService.start();
 }
