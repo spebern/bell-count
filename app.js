@@ -156,14 +156,11 @@ class BellDetectionService {
       };
 
       self.intervalID = setInterval(detectBells, 10);
-      console.log(self.intervalID);
     }
   }
 
   stop() {
-    console.log(this.intervalID);
     if (this.intervalID != 0) {
-      console.log(this.intervalID);
       clearInterval(this.intervalID);
       this.audioCtx.close();
     }
