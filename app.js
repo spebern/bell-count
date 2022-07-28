@@ -2,11 +2,16 @@ let heading = document.querySelector('h1');
 heading.textContent = 'CLICK ANYWHERE TO START'
 document.body.addEventListener('click', start);
 
+function unixTimestampInSecs() {
+  return Math.floor(Date.now() / 1000);
+}
+
 class Bell {
   constructor(frequencyStart, frequencyEnd, frequencyInterval) {
     this.frequencyStart = frequencyStart;
     this.frequencyEnd = frequencyEnd;
     this.bins = new Map();
+    this.lastRang = 0;
 
     let i = frequencyStart / frequencyInterval;
     for (let f = frequencyStart; f < frequencyEnd; f += frequencyInterval) {
@@ -16,11 +21,16 @@ class Bell {
   }
 
   get hasRang() {
+    const now = unixTimestampInSecs();
+    if ((now - this.lastRang) < 10) {
+      return false;
+    }
     for (const value of this.bins.values()) {
       if (!value) {
         return false
       }
     }
+    this.lastRang = now;
     return true;
   }
 
@@ -169,8 +179,8 @@ class BellDetectionService {
 
 function start() {
   var bellDetectionService = new BellDetectionService();
-  setTimeout(function () {
-    bellDetectionService.stop();
-  }, 3000);
+  // setTimeout(function () {
+  //   bellDetectionService.stop();
+  // }, 3000);
   bellDetectionService.start();
 }
